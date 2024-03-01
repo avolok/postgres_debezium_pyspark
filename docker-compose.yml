@@ -19,7 +19,7 @@ services:
       KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
       KAFKA_TOOLS_LOG4J_LOGLEVEL: ERROR      
     volumes:
-      - ./run_workaround.sh:/tmp/run_workaround.sh
+      - ./scripts/run_kafka_workaround.sh:/tmp/run_workaround.sh
     command: "bash -c 'bash /tmp/run_workaround.sh && /etc/confluent/docker/run'"
     networks:
       - mynet
@@ -60,7 +60,7 @@ services:
       - '5432:5432'
     volumes: 
      - ./db:/var/lib/postgresql/data
-      - ./create_db.sql:/docker-entrypoint-initdb.d/create_database.sql
+      - ./scripts/create_db.sql:/docker-entrypoint-initdb.d/create_database.sql
     networks:
       - mynet
     command: ["postgres", "-c", "wal_level=logical"]
@@ -164,7 +164,7 @@ services:
       connect:
         condition: service_healthy
     volumes:
-      - ./create_connection.sh:/tmp/create_connection.sh    
+      - ./scripts/create_connection.sh:/tmp/create_connection.sh    
     command: "bash -c 'bash ../tmp/create_connection.sh'"
   
   pyspark:

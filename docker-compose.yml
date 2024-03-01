@@ -1,0 +1,185 @@
+version: '3'
+services:
+  kafka1:
+    image: confluentinc/cp-kafka:7.2.1
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://kafka1:9092,CONTROLLER://kafka1:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka1:9093'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=WARN"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: WARN
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: ERROR      
+    volumes:
+      - ./run_workaround.sh:/tmp/run_workaround.sh
+    command: "bash -c 'bash /tmp/run_workaround.sh && /etc/confluent/docker/run'"
+    networks:
+      - mynet
+    healthcheck:
+      test: kafka-cluster cluster-id --bootstrap-server kafka1:9092 || exit 1
+      interval: 5s
+      timeout: 60s
+      retries: 15
+ 
+  # tiny_app_producer:
+  #   image: python-tiny-app-producer
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #   container_name: python-tiny-app-producer
+  #   networks:
+  #     - mynet
+
+  tiny_app_consumer:
+    image: python-tiny-app-consumer
+    environment:
+      - PYTHONUNBUFFERED=1
+    container_name: py-app-consumer
+    networks:
+      - mynet
+    depends_on:
+      connect:
+        condition: service_healthy
+
+  db:
+    image: postgres:16.2-alpine
+    container_name: db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=volok1
+    ports:
+      - '5432:5432'
+    volumes: 
+     - ./db:/var/lib/postgresql/data
+      - ./create_db.sql:/docker-entrypoint-initdb.d/create_database.sql
+    networks:
+      - mynet
+    command: ["postgres", "-c", "wal_level=logical"]
+    healthcheck:
+      test: ['CMD', 'psql', '-U', 'postgres', '-c', 'SELECT 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pg_admin
+    logging:
+      driver: none
+    environment:
+      PGADMIN_DEFAULT_EMAIL: 'teste@teste.com'
+      PGADMIN_DEFAULT_PASSWORD: 'teste'
+    ports:
+      - 16543:80
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
+    networks:
+      - mynet
+    profiles:
+      - donotstart
+
+    
+
+  pg_data_producer:
+    image: python-pg-data-producer
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SECONDS_BETWEEN_MODIFICATIONS=20
+    container_name: pg-data-producer
+    networks:
+      - mynet
+    depends_on:
+      db:
+        condition: service_healthy      
+
+  connect:
+    image: debezium/connect:latest
+    container_name: connect
+    ports:
+     - 8083:8083
+    links:
+     - kafka1
+     - db
+    networks:
+      - mynet
+    environment:
+     - BOOTSTRAP_SERVERS=kafka1:9092
+     - GROUP_ID=1
+     - CONFIG_STORAGE_TOPIC=my_connect_configs
+     - OFFSET_STORAGE_TOPIC=my_connect_offsets
+     - STATUS_STORAGE_TOPIC=my_connect_statuses
+     - ENABLE_DEBEZIUM_SCRIPTING='true'
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '--silent',
+          '--fail',
+          '-X',
+          'GET',
+          'http://connect:8083/connectors',
+        ]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+   
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop
+    networks: 
+      - mynet
+    depends_on:
+      - kafka1
+    ports:
+      - 19000:9000
+    environment:
+      KAFKA_BROKERCONNECT: kafka1:9092
+    profiles:
+      - donotstart
+
+  create_debezium_connections:
+    image: python-tiny-app-consumer
+    container_name: create-debezium-connections
+    networks:
+      - mynet
+    depends_on:
+      connect:
+        condition: service_healthy
+    volumes:
+      - ./create_connection.sh:/tmp/create_connection.sh    
+    command: "bash -c 'bash ../tmp/create_connection.sh'"
+  
+  pyspark:
+    image: spark-data-consumer
+    container_name: spark-data-consumer
+    networks:
+      - mynet
+    depends_on:
+      connect:
+        condition: service_healthy
+    # profiles:
+    #   - donotstart
+    # entrypoint: ["tail", "-f", "/dev/null"]
+
+
+
+networks:
+  mynet:

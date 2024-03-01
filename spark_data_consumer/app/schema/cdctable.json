@@ -1,0 +1,161 @@
+{
+    "type": "struct",
+    "fields": [
+        {
+            "name": "after",
+            "type": {
+                "type": "struct",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "date",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    }
+                ]
+            },
+            "nullable": true,
+            "metadata": {}
+        },
+        {
+            "name": "before",
+            "type": {
+                "type": "struct",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "date",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    }
+                ]
+            },
+            "nullable": true,
+            "metadata": {}
+        },
+        {
+            "name": "op",
+            "type": "string",
+            "nullable": true,
+            "metadata": {}
+        },
+        {
+            "name": "source",
+            "type": {
+                "type": "struct",
+                "fields": [
+                    {
+                        "name": "connector",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "db",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "lsn",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "schema",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "sequence",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "snapshot",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "table",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "ts_ms",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "txId",
+                        "type": "long",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "version",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    },
+                    {
+                        "name": "xmin",
+                        "type": "string",
+                        "nullable": true,
+                        "metadata": {}
+                    }
+                ]
+            },
+            "nullable": true,
+            "metadata": {}
+        },
+        {
+            "name": "transaction",
+            "type": "string",
+            "nullable": true,
+            "metadata": {}
+        },
+        {
+            "name": "ts_ms",
+            "type": "long",
+            "nullable": true,
+            "metadata": {}
+        }
+    ]
+}

@@ -164,8 +164,8 @@ services:
       connect:
         condition: service_healthy
     volumes:
-      - ./scripts/create_connection.sh:/tmp/create_connection.sh    
-    command: "bash -c 'bash ../tmp/create_connection.sh'"
+      - ./scripts/create_debezium_connection.sh:/tmp/create_debezium_connection.sh    
+    command: "bash -c 'bash ../tmp/create_debezium_connection.sh'"
   
   pyspark:
     image: spark-data-consumer

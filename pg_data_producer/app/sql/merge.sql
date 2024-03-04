@@ -1,8 +1,8 @@
 MERGE INTO cdctable t USING (
     select
-        % s as id,
-        % s as name,
-        cast(% s as date) as "date"
+        %s as id,
+        %s as name,
+        cast(%s as date) as "date"
 ) s ON s.id = t.id
 WHEN MATCHED THEN
 UPDATE

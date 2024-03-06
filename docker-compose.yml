@@ -153,8 +153,8 @@ services:
       - donotstart
 
   create_debezium_connections:
-    image: python-tiny-app-consumer
-    container_name: create-debezium-connections
+    image: debizium-setup-connector
+    container_name: debizium-setup-connector
     networks:
       - mynet
     depends_on:

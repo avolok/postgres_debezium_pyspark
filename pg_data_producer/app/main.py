@@ -8,7 +8,7 @@ def main():
         "password": "postgres",
         "host": "db",
         "port": "5432",
-        "database": "volok1",
+        "database": "cdcdb",
     }
     
     dp = DataProducer(database_configuration=database_configuration)

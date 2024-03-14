@@ -20,7 +20,7 @@ else
         "database.port": "5432",
         "database.user": "postgres",
         "database.password": "postgres",
-        "database.dbname": "volok1",
+        "database.dbname": "cdcdb",
         "database.server.id": "184054",
         "table.include.list": "public.cdctable",
         "topic.prefix": "debezium",

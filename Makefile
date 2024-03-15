@@ -11,6 +11,6 @@ build_spark_data_consumer:
 	cd spark_data_consumer;docker build -t spark-data-consumer .
 
 build debezium_setup_connector:
-	cd debizium_setup_connector;docker built -t debizium-setup-connector
+	cd debizium_setup_connector;docker build -t debizium-setup-connector .
 
 build_all: build_pg_data_producer build_spark_data_consumer build_consumer 

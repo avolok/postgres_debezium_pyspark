@@ -30,7 +30,6 @@ services:
       interval: 5s
       timeout: 60s
       retries: 15
- 
 
   tiny_app_consumer:
     image: python-tiny-app-consumer
@@ -88,7 +87,7 @@ services:
     image: python-pg-data-producer
     environment:
       - PYTHONUNBUFFERED=1
-      - SECONDS_BETWEEN_MODIFICATIONS=10
+      - SECONDS_BETWEEN_MODIFICATIONS=0.001
     container_name: pg-data-producer
     networks:
       - mynet
@@ -100,19 +99,19 @@ services:
     image: debezium/connect:latest
     container_name: connect
     ports:
-     - 8083:8083
+    - 8083:8083
     links:
-     - kafka1
-     - db
+    - kafka1
+    - db
     networks:
       - mynet
     environment:
-     - BOOTSTRAP_SERVERS=kafka1:9092
-     - GROUP_ID=1
-     - CONFIG_STORAGE_TOPIC=my_connect_configs
-     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-     - STATUS_STORAGE_TOPIC=my_connect_statuses
-     - ENABLE_DEBEZIUM_SCRIPTING='true'
+    - BOOTSTRAP_SERVERS=kafka1:9092
+    - GROUP_ID=1
+    - CONFIG_STORAGE_TOPIC=my_connect_configs
+    - OFFSET_STORAGE_TOPIC=my_connect_offsets
+    - STATUS_STORAGE_TOPIC=my_connect_statuses
+    - ENABLE_DEBEZIUM_SCRIPTING='true'
     volumes:
       - debezium_kafka_config:/kafka/config
       - debezium_kafka_data:/kafka/data
@@ -138,7 +137,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-   
 
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
@@ -152,7 +150,7 @@ services:
     environment:
       KAFKA_BROKERCONNECT: kafka1:9092
     profiles:
-     - donotstart
+    - donotstart
 
   create_debezium_connections:
     image: debizium-setup-connector
@@ -177,7 +175,7 @@ services:
       connect:
         condition: service_healthy
     volumes:
-     - pyspark_data:/data
+    - pyspark_data:/data
     # profiles:
     #   - donotstart
     # entrypoint: ["tail", "-f", "/dev/null"]
@@ -195,4 +193,3 @@ volumes:
 
 networks:
   mynet:
-  

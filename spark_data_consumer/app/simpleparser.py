@@ -151,9 +151,9 @@ class SimpleParser():
         finish = datetime.datetime.now()
         time_spent = finish - start
         
-        # print(f"Events processed: {df.count()}, time spent: {time_spent}ms")
+        print(f"Events processed: {df.count()}, time spent: {time_spent}ms")
         
-        _t.show(truncate=False)
+        # _t.show(truncate=False)
         
         df.unpersist()
     

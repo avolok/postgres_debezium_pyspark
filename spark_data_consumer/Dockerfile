@@ -15,7 +15,9 @@ RUN pip install -r  requirements.txt
 
 COPY app ./app
 
-VOLUME [ "/app" ]
+COPY data ./data
+
+VOLUME [ "/data" ]
 
 WORKDIR /app
 

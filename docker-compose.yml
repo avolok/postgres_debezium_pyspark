@@ -42,6 +42,8 @@ services:
     depends_on:
       connect:
         condition: service_healthy
+    # profiles:
+    # - donotstart
 
   db:
     image: postgres:16.2-alpine
@@ -86,7 +88,7 @@ services:
     image: python-pg-data-producer
     environment:
       - PYTHONUNBUFFERED=1
-      - SECONDS_BETWEEN_MODIFICATIONS=20
+      - SECONDS_BETWEEN_MODIFICATIONS=10
     container_name: pg-data-producer
     networks:
       - mynet
@@ -150,7 +152,7 @@ services:
     environment:
       KAFKA_BROKERCONNECT: kafka1:9092
     profiles:
-      - donotstart
+     - donotstart
 
   create_debezium_connections:
     image: debizium-setup-connector
@@ -169,11 +171,13 @@ services:
     container_name: spark-data-consumer
     networks:
       - mynet
+    environment:
+      - STREAMING_PROCESSING_TIME=20
     depends_on:
       connect:
         condition: service_healthy
     volumes:
-     - pyspark_app:/app
+     - pyspark_data:/data
     # profiles:
     #   - donotstart
     # entrypoint: ["tail", "-f", "/dev/null"]
@@ -187,7 +191,7 @@ volumes:
   debezium_kafka_config:
   debezium_kafka_data:
   debezium_kafka_logs:
-  pyspark_app:
+  pyspark_data:
 
 networks:
   mynet:

@@ -1,3 +1,5 @@
+import datetime
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
 import json
@@ -9,6 +11,8 @@ from delta import DeltaTable
 class SimpleParser():
     
     def __init__(self):
+        
+        print("Initializing App")
         
         self.spark =  (
             SparkSession
@@ -42,9 +46,12 @@ class SimpleParser():
         )
         self.spark.sparkContext.setLogLevel("ERROR")
         
-        self.table_path = "./data/cdctable"
         self.schema_path = "./schema/cdctable.json"
-        self.checkpoint_path = './checkpoints/cdctable'
+        self.table_path = "../data/cdctable"        
+        self.checkpoint_path = '../checkpoints/cdctable'
+        self.streaming_processing_tine: int = int(os.environ.get("STREAMING_PROCESSING_TIME", 15))
+        
+        print("Spark Initialized")
         
     def get_schema(self):
         schema_path = pathlib.Path(self.schema_path).read_text()
@@ -132,13 +139,19 @@ class SimpleParser():
     
     def foreach_batch_function(self, df, epoch_id):
         # Transform and write batchDF
-        df.cache()
-        print("Rows to process:", df.count())
         
+        start = datetime.datetime.now()
+        df.cache()
+                
         # 3 stages to process: remove duplicates, apply type transformations and then upsert to the destination table
         _d = self._processing_deduplicate(df)  
         _t = self._processing_transform(_d)      
         self._processing_upsert(_t)
+        
+        finish = datetime.datetime.now()
+        time_spent = finish - start
+        
+        # print(f"Events processed: {df.count()}, time spent: {time_spent}ms")
         
         _t.show(truncate=False)
         
@@ -146,6 +159,7 @@ class SimpleParser():
     
     def start_streaming(self):
         
+        print(f"Starting Streaming with a trigger: processingTime={self.streaming_processing_tine} seconds")
         
         readStream = self.read_streaming_data()
         
@@ -154,6 +168,7 @@ class SimpleParser():
             .writeStream
             .option("checkpointLocation", self.checkpoint_path)
             .foreachBatch(self.foreach_batch_function)
+            .trigger(processingTime=f"{self.streaming_processing_tine} seconds")
             .start()            
         )        
         

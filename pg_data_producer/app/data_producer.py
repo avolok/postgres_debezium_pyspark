@@ -11,7 +11,7 @@ from datetime import timedelta, date
 class DataProducer:
     def __init__(self, database_configuration):
         self.connection = connect(**database_configuration)
-        self.sleep_time: int = int(os.environ.get("SECONDS_BETWEEN_MODIFICATIONS", 10))
+        self.sleep_time: int = float(os.environ.get("SECONDS_BETWEEN_MODIFICATIONS", 10.0))
 
     def run_script(self, script_path: str, query_parameters: tuple | None = None):
         try:
@@ -45,8 +45,9 @@ class DataProducer:
 
         print("Starting the process with an interval in seconds:", self.sleep_time)
 
-        for i in range(10000):
-            random_int = random.randint(0, 100)
+        running = True
+        while running:
+            random_int = random.randint(0, 1000)
             random_date = self.generate_date(
                 date.today() - timedelta(days=2000), date.today()
             )
@@ -56,5 +57,6 @@ class DataProducer:
 
             self.run_script(script_path=merge_script, query_parameters=merge_parameters)
             print(f"--> {merge_parameters}")
+            
 
             sleep(self.sleep_time)

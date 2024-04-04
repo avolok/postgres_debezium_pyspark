@@ -6,8 +6,3 @@ CREATE TABLE IF NOT EXISTS cdcTable (
 
 ALTER TABLE cdcTable REPLICA IDENTITY FULL;
 
-CREATE TABLE IF NOT EXISTS table1 (
-    col1 integer,
-    col2 date,
-    col3 character varying(50) COLLATE pg_catalog."default"
-)

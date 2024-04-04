@@ -35,10 +35,10 @@ class SimpleParser():
             .config("spark.worker.ui.retainedDrivers", "1")
             .config("spark.driver.memory", "4g")
             .config("spark.driver.extraJavaOptions", "-Ddelta.log.cacheSize=3")
-            #.config(
-            #    "spark.driver.extraJavaOptions",
-            #    "-XX:+CMSClassUnloadingEnabled -XX:+UseCompressedOops",
-            #)
+            .config(
+                "spark.driver.extraJavaOptions",
+                "-XX:+CMSClassUnloadingEnabled -XX:+UseCompressedOops",
+            )
             .getOrCreate()
         )
         self.spark.sparkContext.setLogLevel("ERROR")

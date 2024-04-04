@@ -93,7 +93,7 @@ class DataProducer:
 
                 
             elif current_operation == "merge":                
-                random_int = random.randint(1, 1000)
+                random_int = random.randint(1, 500000) # to generate 500k rows
                 random_date = self.generate_date(
                     date.today() - timedelta(days=2000), date.today()
                 )

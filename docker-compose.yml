@@ -87,7 +87,7 @@ services:
     image: python-pg-data-producer
     environment:
       - PYTHONUNBUFFERED=1
-      - SECONDS_BETWEEN_MODIFICATIONS=1.001
+      - SECONDS_BETWEEN_MODIFICATIONS=0.001
     container_name: pg-data-producer
     networks:
       - mynet
@@ -170,7 +170,7 @@ services:
     networks:
       - mynet
     environment:
-      - STREAMING_PROCESSING_TIME=20
+      - STREAMING_PROCESSING_TIME=5
     depends_on:
       connect:
         condition: service_healthy

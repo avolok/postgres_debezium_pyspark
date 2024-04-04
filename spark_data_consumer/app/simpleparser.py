@@ -19,13 +19,11 @@ class SimpleParser():
             .builder
             .master("local[*]")
             .appName('spark_demo')
-            .config("spark.driver.extraJavaOptions", "-Dlog4jspark.root.logger=WARN,console")
+            .config("spark.driver.extraJavaOptions", "-Dlog4jspark.root.logger=ERROR,console")
             .config('spark.jars.packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,io.delta:delta-spark_2.12:3.1.0')
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             .config("spark.sql.catalog.spark_catalog","org.apache.spark.sql.delta.catalog.DeltaCatalog")
             .config("spark.sql.session.timeZone", "UTC")
-            .config("spark.sql.shuffle.partitions", "1")
-            .config("spark.databricks.delta.snapshotPartitions", "2")
             .config("spark.ui.showConsoleProgress", "false")
             .config("spark.ui.enabled", "false")
             .config("spark.ui.dagGraph.retainedRootRDDs", "1")
@@ -36,30 +34,31 @@ class SimpleParser():
             .config("spark.worker.ui.retainedExecutors", "1")
             .config("spark.worker.ui.retainedDrivers", "1")
             .config("spark.driver.memory", "4g")
-            .config("spark.sql.autoBroadcastJoinThreshold", "-1")
             .config("spark.driver.extraJavaOptions", "-Ddelta.log.cacheSize=3")
-            .config(
-                "spark.driver.extraJavaOptions",
-                "-XX:+CMSClassUnloadingEnabled -XX:+UseCompressedOops",
-            )
+            #.config(
+            #    "spark.driver.extraJavaOptions",
+            #    "-XX:+CMSClassUnloadingEnabled -XX:+UseCompressedOops",
+            #)
             .getOrCreate()
         )
         self.spark.sparkContext.setLogLevel("ERROR")
         
-        self.schema_path = "./schema/cdctable.json"
-        self.table_path = "../data/cdctable"        
+        self.schema_path = "./schema"
+        self.table_path = "/data/cdctable"        
         self.checkpoint_path = '../checkpoints/cdctable'
         self.streaming_processing_tine: int = int(os.environ.get("STREAMING_PROCESSING_TIME", 15))
         
         print("Spark Initialized")
         
-    def get_schema(self):
-        schema_path = pathlib.Path(self.schema_path).read_text()
+        self.initialize_table()
+        
+    def get_schema(self, schema_name="cdc_table"):        
+        schema_path = pathlib.Path(f"{self.schema_path}/{schema_name}.json").read_text()
         schema = StructType.fromJson(json.loads(schema_path))        
         return schema
     
     def read_data(self): 
-        schema = self.get_schema()      
+        schema = self.get_schema("cdctable")      
         
         _df = (
             self.spark
@@ -114,24 +113,17 @@ class SimpleParser():
         return df_deduplicated
     
     def _processing_upsert(self, df):
-        table_exists = DeltaTable.isDeltaTable(self.spark, self.table_path)
 
-        if table_exists:
-            dt = DeltaTable.forPath(self.spark, self.table_path)            
-            
-            delete_condition = expr("s.op = 'd'")
-            
-            (
-                dt.alias("t")
-                .merge(df.alias("s"), "s.id = t.id")
-                .whenMatchedDelete(condition=delete_condition)
-                .whenMatchedUpdateAll()
-                .whenNotMatchedInsertAll(condition=~delete_condition)
-                # fixme: add deletion case
-                .execute()
-            )            
-        else:
-            df.repartition(1).write.format("delta").save(self.table_path)
+        delete_condition = expr("s.op = 'd'")
+        
+        (
+            self.target_delta.alias("t")
+            .merge(df.alias("s"), "s.id = t.id")
+            .whenMatchedDelete(condition=delete_condition)
+            .whenMatchedUpdateAll()
+            .whenNotMatchedInsertAll(condition=~delete_condition)
+            .execute()
+        )            
                 
 
     def _processing_transform(self, df):
@@ -152,8 +144,6 @@ class SimpleParser():
         time_spent = finish - start
         
         print(f"Events processed: {df.count()}, time spent: {time_spent}ms")
-        
-        # _t.show(truncate=False)
         
         df.unpersist()
     
@@ -176,3 +166,22 @@ class SimpleParser():
         
     def get_table_content(self):
         return DeltaTable.forPath(self.spark, self.table_path).toDF().show()
+    
+    def initialize_table(self):
+        table_exists = DeltaTable.isDeltaTable(self.spark, self.table_path)
+        
+        if table_exists:
+            print("Table already exists")
+        else:
+            print("Creating an empty table")
+            self.spark.createDataFrame([], self.get_schema("target_table")).write.format("delta").save(self.table_path)
+        
+        if 1 == 0:
+            self.spark.sql(f"""
+                ALTER TABLE delta.`{self.table_path}` 
+                SET TBLPROPERTIES ('delta.enableDeletionVectors' = true);
+            """)
+            print ("Enabling deletion vectors")
+        
+            
+        self.target_delta = DeltaTable.forPath(self.spark, self.table_path)            

@@ -87,7 +87,7 @@ services:
     image: python-pg-data-producer
     environment:
       - PYTHONUNBUFFERED=1
-      - SECONDS_BETWEEN_MODIFICATIONS=0.001
+      - SECONDS_BETWEEN_MODIFICATIONS=1.001
     container_name: pg-data-producer
     networks:
       - mynet

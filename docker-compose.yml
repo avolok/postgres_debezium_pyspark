@@ -171,8 +171,12 @@ services:
       - mynet
     environment:
       - STREAMING_PROCESSING_TIME=5
+      - ENABLE_OPTIMIZED_WRITE=true
+      - ENABLE_AUTO_COMPACT=false
+      - TUNE_FILE_SIZES_FOR_REWRITE=false
+      - ENABLE_DELETION_VECTORS=false
     depends_on:
-      connect:
+      kafka1:
         condition: service_healthy
     volumes:
     - pyspark_data:/data

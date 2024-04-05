@@ -7,6 +7,24 @@ import pathlib
 from pyspark.sql.functions import from_json, col, row_number, date_from_unix_date, expr
 from pyspark.sql import Window
 from delta import DeltaTable
+from dataclasses import dataclass
+
+@dataclass
+class DeltaSettings():
+    enable_deletion_vectors: bool = False
+    enable_optimized_write: bool = False
+    enable_auto_compact: bool = False
+    tune_file_sizes_for_rewrite: bool = False
+    
+@dataclass
+class StreamingSettings():
+    processing_time: int = 15
+    max_offsets_per_trigger: int = 50000
+    
+@dataclass
+class Settings():
+    streaming: StreamingSettings
+    delta: DeltaSettings
 
 class SimpleParser():
     
@@ -14,7 +32,30 @@ class SimpleParser():
         
         print("Initializing App")
         
-        self.spark =  (
+        self.schema_path = "./schema"
+        self.table_path = "/data/cdctable"        
+        self.checkpoint_path = '../checkpoints/cdctable'
+        
+        self.settings: Settings = Settings(
+            delta=DeltaSettings(            
+                enable_optimized_write=self.__str2bool(os.environ.get("ENABLE_OPTIMIZED_WRITE", False)),
+                enable_auto_compact=self.__str2bool(os.environ.get("ENABLE_AUTO_COMPACT", False)),
+                tune_file_sizes_for_rewrite=self.__str2bool(os.environ.get("TUNE_FILE_SIZES_FOR_REWRITE", False)),
+                enable_deletion_vectors=self.__str2bool(os.environ.get("ENABLE_DELETION_VECTORS", False)),
+            ),
+            streaming=StreamingSettings(
+                processing_time=int(os.environ.get("STREAMING_PROCESSING_TIME", 15)),
+                max_offsets_per_trigger=int(os.environ.get("MAX_OFFSETS_PER_TRIGGER", 50000))
+            )
+        )
+                
+        self.spark = self.initialize_spark()
+        self.target_delta: DeltaTable | None = self.initialize_table()
+        
+        
+        
+    def initialize_spark(self):
+        spark =  (
             SparkSession
             .builder
             .master("local[*]")
@@ -41,16 +82,9 @@ class SimpleParser():
             )
             .getOrCreate()
         )
-        self.spark.sparkContext.setLogLevel("ERROR")
-        
-        self.schema_path = "./schema"
-        self.table_path = "/data/cdctable"        
-        self.checkpoint_path = '../checkpoints/cdctable'
-        self.streaming_processing_tine: int = int(os.environ.get("STREAMING_PROCESSING_TIME", 15))
-        
-        print("Spark Initialized")
-        
-        self.initialize_table()
+        spark.sparkContext.setLogLevel("ERROR")
+        print("Spark Initialized")        
+        return spark
         
     def get_schema(self, schema_name="cdc_table"):        
         schema_path = pathlib.Path(f"{self.schema_path}/{schema_name}.json").read_text()
@@ -58,7 +92,7 @@ class SimpleParser():
         return schema
     
     def read_data(self): 
-        schema = self.get_schema("cdctable")      
+        schema = self.get_schema()      
         
         _df = (
             self.spark
@@ -87,6 +121,7 @@ class SimpleParser():
             .option("subscribe", "debezium.public.cdctable")
             .option("startingOffsets", "earliest")
             .option("auto.offset.reset", "earliest")
+            .option("maxOffsetsPerTrigger", self.settings.streaming.max_offsets_per_trigger)
             .load()
             .select(
                 from_json(col("value").cast("string"), schema).alias("parsed_value")              
@@ -149,8 +184,12 @@ class SimpleParser():
     
     def start_streaming(self):
         
-        print(f"Starting Streaming with a trigger: processingTime={self.streaming_processing_tine} seconds")
+        print("The number of messages in the kafka queue: ", self.read_data().count())
         
+        print(f"Starting Streaming with a trigger: processingTime={self.settings.streaming.processing_time} seconds")
+        print(f"Max offsets per trigger: {self.settings.streaming.max_offsets_per_trigger}")
+        
+
         readStream = self.read_streaming_data()
         
         command = (
@@ -158,7 +197,9 @@ class SimpleParser():
             .writeStream
             .option("checkpointLocation", self.checkpoint_path)
             .foreachBatch(self.foreach_batch_function)
-            .trigger(processingTime=f"{self.streaming_processing_tine} seconds")
+            .trigger( availableNow = True
+                #processingTime=f"{self.settings.streaming.processing_time} seconds"
+            )
             .start()            
         )        
         
@@ -167,7 +208,11 @@ class SimpleParser():
     def get_table_content(self):
         return DeltaTable.forPath(self.spark, self.table_path).toDF().show()
     
-    def initialize_table(self):
+    @staticmethod
+    def __str2bool(v) -> bool:
+        return v.lower() in ("yes", "true", "t", "1")
+    
+    def initialize_table(self) -> DeltaTable:
         table_exists = DeltaTable.isDeltaTable(self.spark, self.table_path)
         
         if table_exists:
@@ -176,12 +221,36 @@ class SimpleParser():
             print("Creating an empty table")
             self.spark.createDataFrame([], self.get_schema("target_table")).write.format("delta").save(self.table_path)
         
-        if 1 == 0:
+        if self.settings.delta.enable_deletion_vectors:
             self.spark.sql(f"""
                 ALTER TABLE delta.`{self.table_path}` 
                 SET TBLPROPERTIES ('delta.enableDeletionVectors' = true);
             """)
             print ("Enabling deletion vectors")
-        
             
-        self.target_delta = DeltaTable.forPath(self.spark, self.table_path)            
+        
+        if self.settings.delta.enable_optimized_write:
+            self.spark.sql(f"""
+                ALTER TABLE delta.`{self.table_path}` 
+                SET TBLPROPERTIES ('delta.autoOptimize.optimizeWrite' = true);
+            """)
+            
+            print ("Enabling optimized write")
+            
+        if self.settings.delta.enable_auto_compact:
+            self.spark.sql(f"""
+                ALTER TABLE delta.`{self.table_path}` 
+                SET TBLPROPERTIES ('delta.autoOptimize.autoCompact' = true);
+            """)
+            
+            print ("Enabling auto compaction")
+            
+        if self.settings.delta.tune_file_sizes_for_rewrite:
+            self.spark.sql(f"""
+                ALTER TABLE delta.`{self.table_path}` 
+                SET TBLPROPERTIES ('delta.tuneFileSizesForRewrites' = true);
+            """)
+            
+            print ("Enabling 'tune file sizes for rewrites'")
+            
+        return DeltaTable.forPath(self.spark, self.table_path)            

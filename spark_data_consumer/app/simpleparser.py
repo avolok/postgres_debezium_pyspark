@@ -131,7 +131,7 @@ class SimpleParser():
 
         return _df
     
-    def _processing_deduplicate(self, df):
+    def _deduplicate(self, df):
 
         df_upsert = df.select("after.*", "source.txId", "op").where("op in ('c', 'u', 'r')")
         df_delete = df.select("before.*", "source.txId", "op").where("op in ('d')")
@@ -147,7 +147,7 @@ class SimpleParser():
         
         return df_deduplicated
     
-    def _processing_upsert(self, df):
+    def _merge(self, df):
 
         delete_condition = expr("s.op = 'd'")
         
@@ -161,7 +161,7 @@ class SimpleParser():
         )            
                 
 
-    def _processing_transform(self, df):
+    def _transform(self, df):
         return df.withColumn("date", date_from_unix_date("date"))
     
     def foreach_batch_function(self, df, epoch_id):
@@ -171,15 +171,20 @@ class SimpleParser():
         df.cache()
                 
         # 3 stages to process: remove duplicates, apply type transformations and then upsert to the destination table
-        _d = self._processing_deduplicate(df)  
-        _t = self._processing_transform(_d)      
-        self._processing_upsert(_t)
+        _d = self._deduplicate(df)  
+        _t = self._transform(_d)   
+        _t.cache()   
+        self._merge(_t)
         
         finish = datetime.datetime.now()
         time_spent = finish - start
         
-        print(f"Events processed: {df.count()}, time spent: {time_spent}ms")
+        print("Merging dataframe:")
+        _t.show(truncate=False)
         
+        print(f"Rows processed: {_t.count()}, time spent: {time_spent}ms")
+        
+        _t.unpersist()
         df.unpersist()
     
     def start_streaming(self):
@@ -197,9 +202,7 @@ class SimpleParser():
             .writeStream
             .option("checkpointLocation", self.checkpoint_path)
             .foreachBatch(self.foreach_batch_function)
-            .trigger( availableNow = True
-                #processingTime=f"{self.settings.streaming.processing_time} seconds"
-            )
+            .trigger( processingTime=f"{self.settings.streaming.processing_time} seconds")
             .start()            
         )        
         

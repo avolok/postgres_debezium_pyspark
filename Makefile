@@ -14,3 +14,9 @@ build debezium_setup_connector:
 	cd debizium_setup_connector;docker build -t debizium-setup-connector .
 
 build_all: build_pg_data_producer build_spark_data_consumer build_consumer 
+
+make run:
+	docker compose up  --attach pg_data_producer --attach tiny_app_consumer --attach pyspark
+
+make destroy:
+	docker compose down

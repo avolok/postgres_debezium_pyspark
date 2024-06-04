@@ -15,6 +15,11 @@ In a nutshell, following steps performed:
 - Spark reads data from Kafka using structured streaming and writing data using delta
 - Python app consumer reads kafka topic and sends the output to the console
 
+## Requirements
+- Docker Engine
+- Make
+- MacOS/Linux/WSL
+
 ## How to start
 
 Build custom images:
@@ -25,6 +30,12 @@ make build_all
 
 Spin-up the environment
 
+```bash
+make run
 ```
-docker compose up  --attach pg_data_producer --attach tiny_app_consumer --attach pyspark
+
+When the tests are done, you can destroy the environment:
+
+```bash
+make destroy
 ```

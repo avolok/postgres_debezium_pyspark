@@ -87,7 +87,7 @@ services:
     image: python-pg-data-producer
     environment:
       - PYTHONUNBUFFERED=1
-      - SECONDS_BETWEEN_MODIFICATIONS=0.001
+      - SECONDS_BETWEEN_MODIFICATIONS=10
     container_name: pg-data-producer
     networks:
       - mynet
@@ -170,13 +170,15 @@ services:
     networks:
       - mynet
     environment:
-      - STREAMING_PROCESSING_TIME=5
+      - STREAMING_PROCESSING_TIME=1 # seconds between each batch polling
       - ENABLE_OPTIMIZED_WRITE=true
       - ENABLE_AUTO_COMPACT=false
       - TUNE_FILE_SIZES_FOR_REWRITE=false
       - ENABLE_DELETION_VECTORS=false
     depends_on:
       kafka1:
+        condition: service_healthy
+      connect:
         condition: service_healthy
     volumes:
     - pyspark_data:/data
